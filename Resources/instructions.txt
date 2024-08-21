@@ -1,0 +1,71 @@
+Extracting and Calculating Details from the PDF(s)
+
+Summary: Below these instructions is the text from the text layer of a pdf file under the header #PDF TEXT: followed by a markdown-version of the same pdf file under the header #MARKDOWN TEXT:. You will extract data from the text beneath the #PDF TEXT: and #MARKDOWN TEXT: headers.
+
+1. Extract the following details from either the text beneath the #PDF TEXT: header and the text beneath the #MARKDOWN TEXT: header. If you can't find it, try to calculate it from other details. If you can't find it or calculate a piece of data, then return a -1 or the string NA.
+   - PROPERTY NAME:
+   - OWNERS:
+   - PARCEL: Look for parcel information or the tax lot information.
+   - STREET ADDRESS:
+   - CITY:
+   - STATE:
+   - POSTAL CODE: Look for the postal code. If you can't find it, try to deduce it based on other address components. If you can't deduce it, leave it blank.
+   - COUNTY: Look for the county. If you can't find it, see if you can deduce the county based on the street address, city, and state. If you can't deduce it, leave it blank.
+   - PROPERTY TYPE: Look for or try to determine the property type. Possible property types are: Downtown "A" Office, Downtown "B" Office, Flex Space, Grocery-Anchored, Land, Mall, Manufactured Homes, Medical Office, Mixed-Use, Multi-Family, Power/Community Center, Shadow-Anchored, Single-Tenant, Street Front Retail, Suburban "A" Multi-family, Suburban "B" Multi-family, Suburban "A" Office, Suburban "B" Office, Unanchored Retail, and Warehouse/Distribution Center. Use only these property types. You must choose a property type from this list. If the property doesn't seem to match any of the types on the list, use Other.
+   - ZONING: Look for zoning information. If you can't find it, try to deduce it from context or related details in the documents. If you can't deduce it, leave it blank.
+   - PARKING SPACES:
+   - RENTABLE SQUARE FEET: Find the total rentable square feet. It might also be stated as the building square feet.
+   - LOT SIZE: Extract the lot size from the property summary. If the lot size is given in acres (AC) instead of square feet, convert to square feet using the formula:
+
+   \[
+   \text{Square Feet} = \text{Acres} \times 43,560
+   \]
+
+   - TENANTS: Find the names of any tenants. Separate them with commas.
+   - TOTAL UNITS: Extract the total number of units. If the total number of units is not given, try adding up the number of tenants that are listed. Remember the TOTAL UNITS for calculating the PRICE PER UNIT.
+   - YEAR BUILT:
+   - SALES PRICE: Represent the amount with only numeric characters and a decimal.
+   - GROSS INCOME: Look for the gross income. It might also be labeled total income, total rent, or total rents. Represent the amount with only numeric characters and a decimal.
+   - TOTAL EXPENSES: If they are listed as NNN or Net Net Net, use only $0. Represent the amount with only numeric characters and a decimal.
+   - NOI: Find the Net Operating Income or NOI. Represent the amount with only numeric characters and a decimal. If not provided, calculate as:
+
+   \[
+   \text{NOI} = \text{GROSS INCOME} - \text{TOTAL EXPENSES}
+   \]
+
+   - GROSS CAP RATE: Find the Gross Cap Rate. Represent the amount with only numeric characters and a decimal. Do not use a percent sign. If not explicitly provided, calculate using the formula:
+
+   \[
+   \text{Gross Cap Rate} = \left( \frac{\text{GROSS INCOME}}{\text{SALES PRICE}} \right) \times 100
+   \]
+
+   - NET CAP RATE: Find the Net Cap Rate. Represent the amount with only numeric characters and a decimal. Do not use a percent sign. If not explicitly provided, calculate using one of the following formulas:
+     - If NOI is provided:
+
+     \[
+     \text{NET CAP RATE} = \left( \frac{\text{NOI}}{\text{SALES PRICE}} \right) \times 100
+     \]
+
+     - If NOI is not provided, calculate it as:
+
+     \[
+     \text{NET CAP RATE} = \left( \frac{\text{GROSS INCOME} - \text{TOTAL EXPENSES}}{\text{SALES PRICE}} \right) \times 100
+     \]
+
+   - PRICE PER RENTABLE SQUARE FOOT: Represent the amount with only numeric characters and a decimal. Calculate using the formula:
+
+   \[
+   \text{PRICE PER RENTABLE SQUARE FOOT} = \frac{\text{SALES PRICE}}{\text{RENTABLE SQUARE FEET}}
+   \]
+
+   - PRICE PER UNIT: Represent the amount with only numeric characters and a decimal. Calculate using the formula:
+
+   \[
+   \text{PRICE PER UNIT} = \frac{\text{SALES PRICE}}{\text{TOTAL UNITS}}
+   \]
+
+   - SELLER: Look for seller information. If there is more than one seller, separate their names with commas.
+   - SELLER'S BROKER: Extract the broker’s name. If there is more than one broker, separate their names with commas.
+   - PROPERTY DESCRIPTION: Extract a detailed property description. Be sure to include all paragraphs in the description section as there are frequently more than one.
+
+Remember, if you can't find it or calculate a piece of data, then If you can't find it, try to calculate it from other details. If you can't find it or calculate a piece of data, then return a -1 or the string NA.

@@ -1,0 +1,8 @@
+openai
+markdown
+google-api-python-client
+openai
+PyPDF2
+markdown
+pydantic
+typing
