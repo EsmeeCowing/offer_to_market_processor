@@ -233,12 +233,14 @@ def send_request_to_openai(pdf_text, markdown_text, instructions):
     )
     return eval(response.choices[0].message.content)
 
-# replace all of places where chatgpt couldn't get data with empty strings
+# replace all of places where chatgpt couldn't get data with empty strings and make all entries well-formed
 def cleanEntries(result):
     for key in result:
         if ((key != "parkingSpaces") and (result[key] == 0) or
             (result[key] in [-1, "NA", None])):
             result[key] = ""
+        if (key != "state"):
+            result[key] = result[key].capitalize()
 
 def insert_result_to_sheet(spreadsheet_id, result):
     """Insert the result into the first empty row of a Google Sheets spreadsheet."""

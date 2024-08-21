@@ -2,16 +2,16 @@ import typing
 from pydantic import BaseModel
 
 #Custom Types
-cities = open('Resources/USCities.txt', 'r').read().strip().split('\t')
-states = open('Resources/USStateCodes.txt', 'r').read().strip().split('\t')
+cities = open('Resources/USCities.txt', 'r').read().strip().split(',')
+states = open('Resources/USStateCodes.txt', 'r').read().strip().split(',')
 
 class RealEstateExtraction(BaseModel):
     propertyName: str = None
     owners: str = None
     parcel: str = None
     streetAddress: str = None
-    city: str = None
-    state: str = None
+    city: eval(f'typing.Literal[{", ".join(repr(e) for e in cities)}]') = None
+    state: eval(f'typing.Literal[{", ".join(repr(e) for e in states)}]') = None
     postalCode: int = None
     county: str = None
     propertyType: str = None
