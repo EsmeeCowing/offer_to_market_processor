@@ -2,15 +2,12 @@ import os
 import io
 import openai
 import markdown
-import json
-import re
 import time
 import requests
 from googleapiclient.discovery import build
+from datetime import datetime
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.service_account import Credentials
-from google.auth.transport.requests import Request
-from google.auth.exceptions import RefreshError
 from PyPDF2 import PdfReader
 from RealEstateExtraction import RealEstateExtraction
 
@@ -20,7 +17,7 @@ from RealEstateExtraction import RealEstateExtraction
 SHARED_DRIVE_ID = '0APHQBI6riR7qUk9PVA'
 UNPROCESSED_FOLDER_ID = "1WCQJM7uNFe3yImoQW7ywwfd6jJQQDxTI"
 PDF_W_MD_FOLDER_ID = "1WJsr5hhnWb-u0m5KG3AQy5EJ62UsmH9w"
-PDFS_AND_MD_IN_SHEETS = "1WEHtpgoxTHc2QrWrtJYZbdjLxDn3No8W"
+PDFS_AND_MD_IN_SHEETS_FOLDER_ID = "1WEHtpgoxTHc2QrWrtJYZbdjLxDn3No8W"
 SPREADSHEET_ID = "1aCsoLTBYxra3mtyGXvJoPnElOdkTOHH9pM5klz_HKU8"
 SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
 SERVICE_ACCOUNT_FILE = 'Resources/EsmeesServiceAccountKey.json'
@@ -231,18 +228,29 @@ def send_request_to_openai(pdf_text, markdown_text, instructions):
         ], 
         response_format=RealEstateExtraction
     )
+    print("RESPONSE: "+str(response.choices[0].message.content))
     return eval(response.choices[0].message.content)
 
-# replace all of places where chatgpt couldn't get data with empty strings and make all entries well-formed
-def cleanEntries(result):
+# replace all of places where chatgpt couldn't get data with empty strings and ensure that all entries are well-formed
+def reformatResult(result):
+    #reformating the entries
     for key in result:
-        if ((key != "parkingSpaces") and (result[key] == 0) or
+        if (((key != "parkingSpaces") and (result[key] == 0)) or
             (result[key] in [-1, "NA", None])):
             result[key] = ""
-        if (key != "state"):
-            result[key] = result[key].capitalize()
+        if (key == "postalCode"):
+            digitList = result[key]
+            result[key] = digitList["tenthousandsPlaceDigit"] + digitList["thousandsPlaceDigit"] + digitList["hundredsPlaceDigit"] + digitList["tensPlaceDigit"] + digitList["onesPlaceDigit"]
+        if (key in ["propertyName", "owners", "city", "county", "tenants", "seller", "sellersBroker"]):
+            wordsList = result[key].split(" ")
+            for word in wordsList:
+                word = word.capitalize()
+            result[key] = " ".join(wordsList)
 
-def insert_result_to_sheet(spreadsheet_id, result):
+    #adding a time stamp in UTC 
+    result.update({"timeDataEntered": str(datetime.utcnow())})
+
+def insert_result_into_sheet(spreadsheet_id, result):
     """Insert the result into the first empty row of a Google Sheets spreadsheet."""
     sheet_name = "'Properties - From OMs'"  # Enclose the sheet name in single quotes
     range_name = "A:A"  # Specifying the range in the sheet
@@ -258,14 +266,10 @@ def insert_result_to_sheet(spreadsheet_id, result):
     # The first empty row is the length of the data + 1
     first_empty_row = len(values) + 1
 
-    cleanEntries(result)
+    reformatResult(result)
 
-    
     #prepare body
     body = {'values': [list(result.values())]}
-
-
-
 
     # Insert data at the first empty row
     sheets_service.spreadsheets().values().update(
@@ -285,8 +289,8 @@ def pdf_and_md_to_sheets():
 
         if pdf_text and markdown_text:
             result = send_request_to_openai(pdf_text, markdown_text, instructions)
-            insert_result_to_sheet(SPREADSHEET_ID, result)
-            move_object_to_folder(folder_id, PDFS_AND_MD_IN_SHEETS)
+            insert_result_into_sheet(SPREADSHEET_ID, result)
+            move_object_to_folder(folder_id, PDFS_AND_MD_IN_SHEETS_FOLDER_ID)
 
 
 def main():
