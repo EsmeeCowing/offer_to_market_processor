@@ -19,7 +19,7 @@ class RealEstateExtraction(BaseModel):
     owners: str = None
     parcel: str = None
     streetAddress: str = None
-    city: str = None #the cities file is too big, but I"m leaving this code here in case things change eval(f"typing.Literal[{", ".join(repr(e) for e in cities)}]") = None
+    city: str = None #the cities file is too big, but I"m leaving this code here in case things change #eval(f"typing.Literal[{", ".join(repr(e) for e in cities)}]") = None
     state: eval(f"typing.Literal[{", ".join(repr(e) for e in states)}]") = None
     postalCode: PostalCode 
     county: str = None #the counties file is also too big, but I"m leaving this code here in case things change #eval(f"typing.Literal[{", ".join(repr(e) for e in counties)}]") = None

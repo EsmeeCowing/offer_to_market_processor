@@ -5,7 +5,7 @@ import markdown
 import time
 import requests
 from googleapiclient.discovery import build
-from datetime import datetime
+from datetime import datetime, timezone
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 from google.oauth2.service_account import Credentials
 from PyPDF2 import PdfReader
@@ -18,6 +18,7 @@ SHARED_DRIVE_ID = '0APHQBI6riR7qUk9PVA'
 UNPROCESSED_FOLDER_ID = "1WCQJM7uNFe3yImoQW7ywwfd6jJQQDxTI"
 PDF_W_MD_FOLDER_ID = "1WJsr5hhnWb-u0m5KG3AQy5EJ62UsmH9w"
 PDFS_AND_MD_IN_SHEETS_FOLDER_ID = "1WEHtpgoxTHc2QrWrtJYZbdjLxDn3No8W"
+PROBLEMATIC_DOCUMENTS_FOLDER_ID = "1-RuX8ry5BdplYDHj18oElyloMYZM-dj5"
 SPREADSHEET_ID = "1aCsoLTBYxra3mtyGXvJoPnElOdkTOHH9pM5klz_HKU8"
 SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
 SERVICE_ACCOUNT_FILE = 'Resources/EsmeesServiceAccountKey.json'
@@ -40,8 +41,23 @@ sheets_service = build('sheets', 'v4', credentials=creds)
 # Set up OpenAI API
 openai.api_key = OPENAI_API_KEY
 
-def get_files_in_folder(folder_id):
-    """Fetch the list of files in a Google Drive folder, including shared drives."""
+#handles exceptions for all api queries
+def runQuery(queryFunction, inputs, maxQueryAttempts=6, minimumWaitInterval=2, remainingAttempts=None):
+    if remainingAttempts is None:
+        remainingAttempts = maxQueryAttempts 
+    try:
+        response = queryFunction(*inputs)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        if remainingAttempts <= 0:
+            return False
+        time.sleep(minimumWaitInterval*(2**(maxQueryAttempts-remainingAttempts)))
+        return runQuery(inputs, remainingAttempts-1)
+    return response
+
+#Writing out the functions that will make up each API querry
+
+def get_files_in_folder_function(folder_id):
     query = f"'{folder_id}' in parents"
     results = drive_service.files().list(
         q=query,
@@ -52,19 +68,18 @@ def get_files_in_folder(folder_id):
     ).execute()
     return results.get('files', [])
 
-def download_file(file_id, file_name):
+def download_file_function(file_id, file_name):
     request = drive_service.files().get_media(fileId=file_id)
     file = io.BytesIO()
     downloader = MediaIoBaseDownload(file, request)
     done = False
     while done is False:
         status, done = downloader.next_chunk()
-        print(f"Download {int(status.progress() * 100)}%.")
     file.seek(0)
     with open(file_name, 'wb') as f:
         f.write(file.read())
 
-def upload_file(file_path, folder_id):
+def upload_file_function(file_path, folder_id):
     """Upload a file to a specific folder in a shared drive."""
     file_metadata = {'name': os.path.basename(file_path), 'parents': [folder_id]}
     media = MediaFileUpload(file_path, mimetype='application/octet-stream')
@@ -76,7 +91,7 @@ def upload_file(file_path, folder_id):
     ).execute()
     return uploaded_file.get('id')
 
-def move_object_to_folder(object_id, new_folder_id):
+def move_object_to_folder_function(object_id, new_folder_id):
     """Move a file to a new folder in a Google Drive shared drive."""
     file = drive_service.files().get(fileId=object_id, fields="parents", supportsAllDrives=True).execute()
     previous_parents = ",".join(file.get("parents"))
@@ -88,7 +103,7 @@ def move_object_to_folder(object_id, new_folder_id):
         supportsAllDrives=True
     ).execute()
 
-def create_folder_in_drive(folder_name, parent_folder_id):
+def create_folder_in_drive_function(folder_name, parent_folder_id):
     """Create a new folder in Google Drive."""
     folder_metadata = {
         'name': folder_name,
@@ -98,7 +113,7 @@ def create_folder_in_drive(folder_name, parent_folder_id):
     folder = drive_service.files().create(body=folder_metadata, fields='id', supportsAllDrives=True).execute()
     return folder.get('id')
 
-def get_markdown(pdf_path):
+def get_markdown_function(pdf_path):
     url = MARKER_URL
     headers = {"X-Api-Key": MARKER_API_KEY}
     form_data = {
@@ -107,70 +122,43 @@ def get_markdown(pdf_path):
         "force_ocr": (None, False),
         "paginate": (None, False)
     }
-    response = requests.post(url, files=form_data, headers=headers)
-    if response.status_code != 200:
-        print(f"Error: Received status code {response.status_code}")
-        print(response.text)
-        return None
-
-    data = response.json()
-    if not data.get('success', False):
-        print(f"Error: {data.get('error', 'Unknown error occurred')}")
-        return None
-
-    check_url = data["request_check_url"]
-    max_polls = 300
-    interval = 2
-
-    for i in range(max_polls):
-        time.sleep(interval)
-        response = requests.get(check_url, headers=headers)
-        data = response.json()
-
-        if data["status"] == "complete":
-            break
-        elif data["status"] == "failed":
-            print("Conversion failed.")
-            return None
-
-    if data.get("success", False):
-        return data.get("markdown", "")
-    else:
-        print(f"Error: {data.get('error', 'Unknown error occurred')}")
-        return None
+    return requests.post(url, files=form_data, headers=headers)
     
-def pdf_to_markdown():
-    files = get_files_in_folder(UNPROCESSED_FOLDER_ID)
+def pdf_to_md():
+    files = runQuery(get_files_in_folder_function, [UNPROCESSED_FOLDER_ID])
     for file in files:
-        pdf_file_id = file['id']
-        pdf_file_name = file['name']
-        local_pdf_path = pdf_file_name
+        if (file["mimeType"] == "application/pdf"):
+            pdf_file_id = file['id']
+            pdf_file_name = file['name']
+            local_pdf_path = pdf_file_name
 
-        # Download the PDF file
-        download_file(pdf_file_id, local_pdf_path)
+            # Download the PDF file
+            runQuery(download_file_function, [pdf_file_id, local_pdf_path])
 
-        # Convert the PDF to Markdown
-        markdown_content = get_markdown(local_pdf_path)
-        if markdown_content:
-            # Save the markdown content to a file
-            markdown_file_name = os.path.splitext(pdf_file_name)[0] + ".md"
-            with open(markdown_file_name, 'w') as md_file:
-                md_file.write(markdown_content)
-            
-            #create a folder to house the markdown and pdf files in
-            wrapper_folder_id = create_folder_in_drive(pdf_file_name[0:-4], PDF_W_MD_FOLDER_ID)
+            # Convert the PDF to Markdown
+            markdown_content = runQuery(get_markdown_function, [local_pdf_path])
+            if markdown_content:
+                # Save the markdown content to a file
+                markdown_file_name = os.path.splitext(pdf_file_name)[0] + ".md"
+                with open(markdown_file_name, 'w') as md_file:
+                    md_file.write(markdown_content)
+                
+                #create a folder to house the markdown and pdf files in
+                wrapper_folder_id = runQuery(create_folder_in_drive_function, [pdf_file_name[0:-4], PDF_W_MD_FOLDER_ID])
 
-            # Upload the markdown file to the new location
-            markdown_file_id = upload_file(markdown_file_name, wrapper_folder_id)
+                # Upload the markdown file to the new location
+                markdown_file_id = runQuery(upload_file_function, [markdown_file_name, wrapper_folder_id])
 
-            # Move the original PDF file to the new location
-            move_object_to_folder(pdf_file_id, wrapper_folder_id)
+                # Move the original PDF file to the new location
+                runQuery(move_object_to_folder_function, [pdf_file_id, wrapper_folder_id])
 
-            # Clean up local files
-            os.remove(local_pdf_path)
-            os.remove(markdown_file_name)
+                # Clean up local files
+                os.remove(local_pdf_path)
+                os.remove(markdown_file_name)
 
-            print(f"Processed {pdf_file_name} successfully!")
+                print(f"Processed {pdf_file_name} successfully!")
+        else:
+            runQuery(move_object_to_folder_function, [file['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID])
 
 def extract_text_from_markdown(markdown_file_path):
     """Read and return the content of a markdown file."""
@@ -193,7 +181,7 @@ def extract_text_from_pdf(file_path):
     return text
 
 def process_folder(folder_id):
-    files = get_files_in_folder(folder_id)
+    files = runQuery(get_files_in_folder_function, [folder_id])
     pdf_file = None
     markdown_file = None
 
@@ -204,11 +192,11 @@ def process_folder(folder_id):
             markdown_file = file
 
     if pdf_file and markdown_file:
-        download_file(pdf_file['id'], pdf_file['name'])
+        runQuery(download_file_function, [pdf_file['id'], pdf_file['name']])
         pdf_text = extract_text_from_pdf(pdf_file['name'])
         os.remove(pdf_file['name'])
 
-        download_file(markdown_file['id'], markdown_file['name'])
+        runQuery(download_file_function, [markdown_file['id'], markdown_file['name']])
         markdown_text = extract_text_from_markdown(markdown_file['name'])
         os.remove(markdown_file['name'])
 
@@ -228,7 +216,6 @@ def send_request_to_openai(pdf_text, markdown_text, instructions):
         ], 
         response_format=RealEstateExtraction
     )
-    print("RESPONSE: "+str(response.choices[0].message.content))
     return eval(response.choices[0].message.content)
 
 # replace all of places where chatgpt couldn't get data with empty strings and ensure that all entries are well-formed
@@ -248,40 +235,38 @@ def reformatResult(result):
             result[key] = " ".join(wordsList)
 
     #adding a time stamp in UTC 
-    result.update({"timeDataEntered": str(datetime.utcnow())})
+    utcTimeStamp = datetime.now(timezone.utc).timestamp()
+    result.update({"timeDataEntered": str(utcTimeStamp)})
+    print()
 
-def insert_result_into_sheet(spreadsheet_id, result):
-    """Insert the result into the first empty row of a Google Sheets spreadsheet."""
-    sheet_name = "'Properties - From OMs'"  # Enclose the sheet name in single quotes
-    range_name = "A:A"  # Specifying the range in the sheet
-
-    # Get the current data in column A to find the first empty row
-    data = sheets_service.spreadsheets().values().get(
-        spreadsheetId=spreadsheet_id,
-        range=range_name
-    ).execute()
-
+def get_first_empty_spreadsheet_row_function(spreadsheet_id):
+    data = sheets_service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range="A:A").execute()
     values = data.get('values', [])
+    print("len(values)="+str(len(values)))
+    return len(values)
 
-    # The first empty row is the length of the data + 1
-    first_empty_row = len(values) + 1
-
-    reformatResult(result)
-
+def write_list_to_spreadsheet_row_function(spreadsheet_id, row, data):
     #prepare body
-    body = {'values': [list(result.values())]}
+    body = {'values': [list(data.values())]}
 
-    # Insert data at the first empty row
+    #insert data
     sheets_service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
-        range=str(first_empty_row)+":"+str(first_empty_row),
+        range=str(row)+":"+str(row),
         valueInputOption="USER_ENTERED",
         body=body
     ).execute()
 
+
+
+def insert_result_into_sheet(spreadsheet_id, result):
+    first_empty_row = runQuery(get_first_empty_spreadsheet_row_function, [spreadsheet_id])
+    reformatResult(result)
+    runQuery(write_list_to_spreadsheet_row_function, [spreadsheet_id, first_empty_row, result])
+
 def pdf_and_md_to_sheets():
     instructions = extract_text_from_instructions(INSTRUCTIONS_FILE)  # Load the instructions from the text file
-    folders = get_files_in_folder(PDF_W_MD_FOLDER_ID)
+    folders = runQuery(get_files_in_folder_function, [PDF_W_MD_FOLDER_ID])
 
     for folder in folders:
         folder_id = folder['id']
@@ -290,11 +275,11 @@ def pdf_and_md_to_sheets():
         if pdf_text and markdown_text:
             result = send_request_to_openai(pdf_text, markdown_text, instructions)
             insert_result_into_sheet(SPREADSHEET_ID, result)
-            move_object_to_folder(folder_id, PDFS_AND_MD_IN_SHEETS_FOLDER_ID)
+            runQuery(move_object_to_folder_function, [folder_id, PDFS_AND_MD_IN_SHEETS_FOLDER_ID])
 
 
 def main():
-   # pdf_to_markdown()
+   pdf_to_md()
    pdf_and_md_to_sheets()
 
     
