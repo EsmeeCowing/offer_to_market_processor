@@ -11,7 +11,7 @@ from google.oauth2.service_account import Credentials
 from PyPDF2 import PdfReader
 from RealEstateExtraction import RealEstateExtraction
 
-## CONSTANTS
+#//////////////////////////////////////////CONSTANTS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 #Drive
 SHARED_DRIVE_ID = '0APHQBI6riR7qUk9PVA'
@@ -22,6 +22,9 @@ PROBLEMATIC_DOCUMENTS_FOLDER_ID = "1-RuX8ry5BdplYDHj18oElyloMYZM-dj5"
 SPREADSHEET_ID = "1aCsoLTBYxra3mtyGXvJoPnElOdkTOHH9pM5klz_HKU8"
 SCOPES = ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
 SERVICE_ACCOUNT_FILE = 'Resources/EsmeesServiceAccountKey.json'
+CREDS = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+DRIVE_SERVICE = build('drive', 'v3', credentials=CREDS)
+SHEETS_SERVICE = build('sheets', 'v4', credentials=CREDS)
 
 #Marker
 MARKER_API_KEY = "NpujIN2fzkNYZQYbCN2X-4QpQMe70dy7HKv_onCtM4I"
@@ -29,136 +32,82 @@ MARKER_URL = "https://www.datalab.to/api/v1/marker"
 
 #OpenAI
 OPENAI_API_KEY = "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"
-
-#Local
-INSTRUCTIONS_FILE = 'Resources/instructions.txt'  # Path to the instructions text file
-
-# Initialize the Google Drive and Sheets API clients
-creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-drive_service = build('drive', 'v3', credentials=creds)
-sheets_service = build('sheets', 'v4', credentials=creds)
-
-# Set up OpenAI API
 openai.api_key = OPENAI_API_KEY
 
-#handles exceptions for all api queries
-def runQuery(queryFunction, inputs, maxQueryAttempts=6, minimumWaitInterval=2, remainingAttempts=None):
-    if remainingAttempts is None:
-        remainingAttempts = maxQueryAttempts 
+#Local
+INSTRUCTIONS_FILE_PATH = 'Resources/instructions.txt'
+ERROR_LOG_PATH = "Resources/errors.log"
+
+#//////////////////////////////////////////HELPER FUNCTIONS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+def writeToErrorLog(error):
+    errorLog = open(ERROR_LOG_PATH, "a")
+    errorLog.write(f"ERROR: {error} \n")
+    errorLog.write("TIME ERROR OCURRED (UTC): "+str(datetime.now(timezone.utc))+"\n\n")
+    errorLog.close()
+
+#Handles exceptions for each API Query
+def runQuery(query_function, inputs, max_query_attempts=6, wait_interval=2, remaining_attempts=None):
+    if remaining_attempts is None:
+        remaining_attempts = max_query_attempts
     try:
-        response = queryFunction(*inputs)
+        response = query_function(*inputs)
     except Exception as e:
-        print(f"An error occurred: {e}")
-        if remainingAttempts <= 0:
+        writeToErrorLog(e)
+        if remaining_attempts <= 0:
             return False
-        time.sleep(minimumWaitInterval*(2**(maxQueryAttempts-remainingAttempts)))
-        return runQuery(inputs, remainingAttempts-1)
+        time.sleep(wait_interval)
+        return runQuery(query_function, inputs, wait_interval=wait_interval*(2**(max_query_attempts-remaining_attempts)), waitremainingAttempts=remaining_attempts-1)
     return response
 
-#Writing out the functions that will make up each API querry
+#WRAPPER FUNCTIONS FOR API QUERIES
 
-def get_files_in_folder_function(folder_id):
+def getFilesInFolderQuery(folder_id):
     query = f"'{folder_id}' in parents"
-    results = drive_service.files().list(
-        q=query,
-        includeItemsFromAllDrives=True,
-        supportsAllDrives=True,
-        corpora="drive",
-        driveId=SHARED_DRIVE_ID
-    ).execute()
+    results = DRIVE_SERVICE.files().list(q=query, includeItemsFromAllDrives=True, supportsAllDrives=True, corpora="drive", driveId=SHARED_DRIVE_ID).execute()
     return results.get('files', [])
 
-def download_file_function(file_id, file_name):
-    request = drive_service.files().get_media(fileId=file_id)
+def downloadFileQuery(file_id, file_name):
+    request = DRIVE_SERVICE.files().get_media(fileId=file_id)
     file = io.BytesIO()
     downloader = MediaIoBaseDownload(file, request)
+
     done = False
     while done is False:
         status, done = downloader.next_chunk()
+    
     file.seek(0)
     with open(file_name, 'wb') as f:
         f.write(file.read())
 
-def upload_file_function(file_path, folder_id):
-    """Upload a file to a specific folder in a shared drive."""
+def uploadFileQuery(file_path, folder_id):
     file_metadata = {'name': os.path.basename(file_path), 'parents': [folder_id]}
     media = MediaFileUpload(file_path, mimetype='application/octet-stream')
-    uploaded_file = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields='id',
-        supportsAllDrives=True
-    ).execute()
+    uploaded_file = DRIVE_SERVICE.files().create(body=file_metadata, media_body=media, fields='id', supportsAllDrives=True).execute()
     return uploaded_file.get('id')
 
-def move_object_to_folder_function(object_id, new_folder_id):
-    """Move a file to a new folder in a Google Drive shared drive."""
-    file = drive_service.files().get(fileId=object_id, fields="parents", supportsAllDrives=True).execute()
+def moveObjectToFolderQuery(object_id, new_folder_id):
+    file = DRIVE_SERVICE.files().get(fileId=object_id, fields="parents", supportsAllDrives=True).execute()
     previous_parents = ",".join(file.get("parents"))
-    drive_service.files().update(
-        fileId=object_id,
-        addParents=new_folder_id,
-        removeParents=previous_parents,
-        fields="id, parents",
-        supportsAllDrives=True
-    ).execute()
+    DRIVE_SERVICE.files().update(fileId=object_id, addParents=new_folder_id, removeParents=previous_parents, fields="id, parents", supportsAllDrives=True).execute()
 
-def create_folder_in_drive_function(folder_name, parent_folder_id):
-    """Create a new folder in Google Drive."""
-    folder_metadata = {
-        'name': folder_name,
-        'mimeType': 'application/vnd.google-apps.folder',
-        'parents': [parent_folder_id]
-    }
-    folder = drive_service.files().create(body=folder_metadata, fields='id', supportsAllDrives=True).execute()
+def moveObjectToTrashQuery(object_id):
+    DRIVE_SERVICE.files().update(fileId=object_id, body={'trashed': True}).execute()
+
+def createFolderQuery(folder_name, parent_folder_id):
+    folder_metadata = {'name': folder_name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [parent_folder_id]}
+    folder = DRIVE_SERVICE.files().create(body=folder_metadata, fields='id', supportsAllDrives=True).execute()
     return folder.get('id')
 
-def get_markdown_function(pdf_path):
+def getMarkdownFromPDFQuery(pdf_path):
     url = MARKER_URL
     headers = {"X-Api-Key": MARKER_API_KEY}
-    form_data = {
-        'file': ('document.pdf', open(pdf_path, 'rb'), 'application/pdf'),
-        "langs": (None, "en"),
-        "force_ocr": (None, False),
-        "paginate": (None, False)
-    }
-    return requests.post(url, files=form_data, headers=headers)
-    
-def pdf_to_md():
-    files = runQuery(get_files_in_folder_function, [UNPROCESSED_FOLDER_ID])
-    for file in files:
-        if (file["mimeType"] == "application/pdf"):
-            pdf_file_id = file['id']
-            pdf_file_name = file['name']
-            local_pdf_path = pdf_file_name
+    form_data = {'file': ('document.pdf', open(pdf_path, 'rb'), 'application/pdf'), "langs": (None, "en"), "force_ocr": (None, False), "paginate": (None, False)}
 
-            # Download the PDF file
-            runQuery(download_file_function, [pdf_file_id, local_pdf_path])
+    response = requests.post(url, files=form_data, headers=headers)
+    data = response.json()
 
-            # Convert the PDF to Markdown
-            markdown_content = runQuery(get_markdown_function, [local_pdf_path])
-            if markdown_content:
-                # Save the markdown content to a file
-                markdown_file_name = os.path.splitext(pdf_file_name)[0] + ".md"
-                with open(markdown_file_name, 'w') as md_file:
-                    md_file.write(markdown_content)
-                
-                #create a folder to house the markdown and pdf files in
-                wrapper_folder_id = runQuery(create_folder_in_drive_function, [pdf_file_name[0:-4], PDF_W_MD_FOLDER_ID])
-
-                # Upload the markdown file to the new location
-                markdown_file_id = runQuery(upload_file_function, [markdown_file_name, wrapper_folder_id])
-
-                # Move the original PDF file to the new location
-                runQuery(move_object_to_folder_function, [pdf_file_id, wrapper_folder_id])
-
-                # Clean up local files
-                os.remove(local_pdf_path)
-                os.remove(markdown_file_name)
-
-                print(f"Processed {pdf_file_name} successfully!")
-        else:
-            runQuery(move_object_to_folder_function, [file['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID])
+    return data.get("markdown", "")
 
 def extract_text_from_markdown(markdown_file_path):
     """Read and return the content of a markdown file."""
@@ -179,44 +128,6 @@ def extract_text_from_pdf(file_path):
             for page in reader.pages:
                 text += page.extract_text()
     return text
-
-def process_folder(folder_id):
-    files = runQuery(get_files_in_folder_function, [folder_id])
-    pdf_file = None
-    markdown_file = None
-
-    for file in files:
-        if file['mimeType'] == 'application/pdf':
-            pdf_file = file
-        elif file['mimeType'] == 'text/markdown':
-            markdown_file = file
-
-    if pdf_file and markdown_file:
-        runQuery(download_file_function, [pdf_file['id'], pdf_file['name']])
-        pdf_text = extract_text_from_pdf(pdf_file['name'])
-        os.remove(pdf_file['name'])
-
-        runQuery(download_file_function, [markdown_file['id'], markdown_file['name']])
-        markdown_text = extract_text_from_markdown(markdown_file['name'])
-        os.remove(markdown_file['name'])
-
-        return pdf_text, markdown_text
-
-    return None, None
-
-def send_request_to_openai(pdf_text, markdown_text, instructions):
-    """Send a request to the OpenAI API with the extracted PDF and Markdown text."""
-    prompt = f"#INSTRUCTIONS\n\n{instructions}\n\n#PDF TEXT:\n\n{pdf_text}\n\n#MARKDOWN TEXT:\n\n{markdown_text}"
-
-    response = openai.beta.chat.completions.parse(
-        model="gpt-4o-2024-08-06",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ], 
-        response_format=RealEstateExtraction
-    )
-    return eval(response.choices[0].message.content)
 
 # replace all of places where chatgpt couldn't get data with empty strings and ensure that all entries are well-formed
 def reformatResult(result):
@@ -240,42 +151,163 @@ def reformatResult(result):
     print()
 
 def get_first_empty_spreadsheet_row_function(spreadsheet_id):
-    data = sheets_service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range="A:A").execute()
+    data = SHEETS_SERVICE.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range="A:A").execute()
     values = data.get('values', [])
-    print("len(values)="+str(len(values)))
-    return len(values)
+    return len(values)+1
 
 def write_list_to_spreadsheet_row_function(spreadsheet_id, row, data):
     #prepare body
     body = {'values': [list(data.values())]}
 
     #insert data
-    sheets_service.spreadsheets().values().update(
+    SHEETS_SERVICE.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
         range=str(row)+":"+str(row),
         valueInputOption="USER_ENTERED",
         body=body
     ).execute()
 
+def askChatGPTQuestionFunction(question, responseFormat):
+    return openai.beta.chat.completions.parse(
+        model="gpt-4o-2024-08-06",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": question}
+        ], 
+        response_format=responseFormat
+    )
+def pdf_to_md():
+    files = runQuery(getFilesInFolderQuery, [UNPROCESSED_FOLDER_ID])
+    if files == False:
+        writeToErrorLog("Query to get files in unprocessed pdf folder failed")
+    else:
+        for file in files:
+            pdf_file_id = file['id']
+            pdf_file_name = file['name']
+            local_pdf_path = pdf_file_name
 
+            if (file["mimeType"] != "application/pdf"):
+                writeToErrorLog(f"File {pdf_file_name} in unprocessed pdf folder is not a pdf")
 
-def insert_result_into_sheet(spreadsheet_id, result):
-    first_empty_row = runQuery(get_first_empty_spreadsheet_row_function, [spreadsheet_id])
-    reformatResult(result)
-    runQuery(write_list_to_spreadsheet_row_function, [spreadsheet_id, first_empty_row, result])
+                if runQuery(moveObjectToFolderQuery, [pdf_file_id, PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                    writeToErrorLog(f"Could not move file {pdf_file_name} from unprocessed pdf folder to problematic documents folder")
+            else:        
+                # Download the PDF file
+                if runQuery(downloadFileQuery, [pdf_file_id, local_pdf_path]) == False:
+                    writeToErrorLog(f"Could not download pdf file {pdf_file_name}")
+
+                    if runQuery(moveObjectToFolderQuery, [pdf_file_id, PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                        writeToErrorLog(f"Could not move file {pdf_file_name} in unprocessed pdf folder to problematic documents folder")
+                else:
+                    # Convert the PDF to Markdown
+                    markdown_content = runQuery(getMarkdownFromPDFQuery, [local_pdf_path])
+                    if markdown_content == False:
+                        writeToErrorLog(f"API could not convert pdf file {pdf_file_name} to markdown")
+
+                        if runQuery(moveObjectToFolderQuery, [pdf_file_id, PROBLEMATIC_DOCUMENTS_FOLDER_ID])==False:
+                            writeToErrorLog(f"Could not move pdf {pdf_file_name} from unprocessed pdf folder to problematic documents folder")
+                    else:
+                        # Save the markdown content to a file
+                        markdown_file_name = os.path.splitext(pdf_file_name)[0] + ".md"
+                        with open(markdown_file_name, 'w') as md_file:
+                            md_file.write(markdown_content)
+                        #create a folder to house the markdown and pdf files in
+                        wrapper_folder_name = pdf_file_name[0:-4]
+                        wrapper_folder_id = runQuery(createFolderQuery, [wrapper_folder_name, PDF_W_MD_FOLDER_ID])
+                        if wrapper_folder_id == False:
+                            writeToErrorLog(f"Could not create folder in pdfs with markdown files folder to contain {pdf_file_name} and {markdown_file_name}")
+                            if runQuery(moveObjectToFolderQuery, [file['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                                writeToErrorLog(f"Could not move pdf {pdf_file_name} from unprocessed pdf folder to problematic documents folder")
+                        else:
+                            # Upload the markdown file to the new location
+                            markdown_file_id = runQuery(uploadFileQuery, [markdown_file_name, wrapper_folder_id])
+                            if markdown_file_id == False:
+                                writeToErrorLog(f"Could not upload {markdown_file_name} to wrapper folder in pdf with markdown folder")
+                                if runQuery(moveObjectToTrashQuery, [wrapper_folder_id]) == False:
+                                        writeToErrorLog(f"Could not delete folder {wrapper_folder_name}")
+                            else:
+                                # Move the original PDF file to the new location
+                                if runQuery(moveObjectToFolderQuery, [pdf_file_id, wrapper_folder_id]) == False:
+                                    writeToErrorLog(f"Could not move pdf {pdf_file_name} from unprocessed pdf folder to wrapper folder in pdf with markdown folder")
+                                    if runQuery(moveObjectToTrashQuery, [wrapper_folder_id]) == False:
+                                        writeToErrorLog(f"Could not delete folder {wrapper_folder_name}")
+                                    if runQuery(moveObjectToFolderQuery, [file['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                                        writeToErrorLog(f"Could not move pdf {pdf_file_name} from unprocessed pdf folder to problematic documents folder")
+                        # Clean up md file if it was sucessfully downloaded
+                        os.remove(markdown_file_name)
+                    # Clean up pdf file if it was sucessfully downloaded
+                    os.remove(local_pdf_path)
 
 def pdf_and_md_to_sheets():
-    instructions = extract_text_from_instructions(INSTRUCTIONS_FILE)  # Load the instructions from the text file
-    folders = runQuery(get_files_in_folder_function, [PDF_W_MD_FOLDER_ID])
+    instructions = extract_text_from_instructions(INSTRUCTIONS_FILE_PATH)  # Load the instructions from the text file
+    folders = runQuery(getFilesInFolderQuery, [PDF_W_MD_FOLDER_ID])
+    if folders == False:
+        writeToErrorLog("Unable to get contents of pdf with md folder using  API")
+    else:
+        for folder in folders:
+            folderName = folder['name']
 
-    for folder in folders:
-        folder_id = folder['id']
-        pdf_text, markdown_text = process_folder(folder_id)
+            if folder['mimeType'] != 'application/vnd.google-apps.folder':
+                writeToErrorLog(f"An element of the pdf with md folder {folderName} is not a folder")
+                if runQuery(moveObjectToFolderQuery, folder['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID) == False:
+                    writeToErrorLog(f"Could not move non-folder element {folder_name} of pdf w md folder to problematic documents folder")
+            else:
+                files = runQuery(getFilesInFolderQuery, [folder['id']])
+                if files == False:
+                    writeToErrorLog(f"Could not get list of files in folder {folderName}")
+                    if runQuery(moveObjectToFolderQuery, folder['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID) == False:
+                        writeToErrorLog(f"Could not move folder we could not get list of files for {folderName} to problematic documents folder")
+                else:
+                    pdf_file = False
+                    markdown_file = False
 
-        if pdf_text and markdown_text:
-            result = send_request_to_openai(pdf_text, markdown_text, instructions)
-            insert_result_into_sheet(SPREADSHEET_ID, result)
-            runQuery(move_object_to_folder_function, [folder_id, PDFS_AND_MD_IN_SHEETS_FOLDER_ID])
+                    for file in files:
+                        if file['mimeType'] == 'application/pdf':
+                            pdf_file = file
+                        elif file['mimeType'] == 'text/markdown':
+                            markdown_file = file
+
+                    if (pdf_file == False) or (markdown_file == False):
+                        writeToErrorLog(f"Element of pdf with md folder {folderName} did not contain both a pdf and a md file")
+                        if runQuery(moveObjectToFolderQuery, [folder['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                            writeToErrorLog(f"Could not move folder that did not contain both a pdf and a md file {folderName} to problematic documents folder")
+                    else:
+                        pdf_file_name = pdf_file['name']
+                        markdown_file_name = markdown_file['name']
+
+                        if (runQuery(downloadFileQuery, [pdf_file['id'], pdf_file_name]) == False): 
+                            writeToErrorLog(f"Could not download both pdf file {pdf_file_name}")
+                            if runQuery(moveObjectToFolderQuery, [file['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                                writeToErrorLog(f"Could not move folder {folderName} to problematic documents folder")
+                        elif runQuery(downloadFileQuery, [markdown_file['id'], markdown_file_name]) == False:
+                            if runQuery(moveObjectToFolderQuery, [files['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                                writeToErrorLog(f"Could not move folder {folderName} to problematic documents folder")
+                        else:
+                            pdf_text = extract_text_from_pdf(pdf_file_name)
+                            os.remove(pdf_file['name'])
+
+                            markdown_text = extract_text_from_markdown(markdown_file_name)
+                            os.remove(markdown_file_name)
+
+                            prompt = f"#INSTRUCTIONS\n\n{instructions}\n\n#PDF TEXT:\n\n{pdf_text}\n\n#MARKDOWN TEXT:\n\n{markdown_text}"
+
+                            response = runQuery(askChatGPTQuestionFunction, [prompt, RealEstateExtraction])
+                            if response == False:
+                                writeToErrorLog(f"Could not get real estate data from OpenAI for pdf {pdf_file_name} and md {markdown_file_name}")
+                                if runQuery(moveObjectToFolderQuery, [files['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID]) == False:
+                                    writeToErrorLog(f"Could not move folder {folderName} to problematic documents folder")
+                            else:
+                                realEstateData = eval(response.choices[0].message.content)
+                                reformatResult(realEstateData)
+
+                                first_empty_row = runQuery(get_first_empty_spreadsheet_row_function, [SPREADSHEET_ID])
+                                if first_empty_row == False:
+                                    writeToErrorLog(f"Could not get first empty row in spreadsheet")
+                                elif runQuery(write_list_to_spreadsheet_row_function, [SPREADSHEET_ID, first_empty_row, realEstateData]) == False: 
+                                    writeToErrorLog(f"Could not write real estate data to spreadsheet")
+                                else: 
+                                    if runQuery(moveObjectToFolderQuery, [folder['id'], PDFS_AND_MD_IN_SHEETS_FOLDER_ID]) == False:
+                                        writeToErrorLog(f"Could not move {folderName} to pdfs and md in sheets folder")
 
 
 def main():
