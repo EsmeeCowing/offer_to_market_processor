@@ -336,3 +336,129 @@ TIME ERROR OCURRED (UTC): 2024-09-09 19:43:32.344005+00:00
 ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'county'), 'default' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
 TIME ERROR OCURRED (UTC): 2024-09-09 19:43:48.664743+00:00
 
+ERROR: Element of PDFs With Markdown Files folder 10 Coburg 200 SALE - 10 Coburg Rd did not contain both a pdf and a md file 
+TIME ERROR OCURRED (UTC): 2024-09-10 00:21:45.439920+00:00
+
+ERROR: Element of PDFs With Markdown Files folder 808 SW Alder St_FOR SALE OR LEASE did not contain both a pdf and a md file 
+TIME ERROR OCURRED (UTC): 2024-09-10 00:34:56.252023+00:00
+
+ERROR: Element of PDFs With Markdown Files folder Redmond OM did not contain both a pdf and a md file 
+TIME ERROR OCURRED (UTC): 2024-09-10 00:36:10.397802+00:00
+
+ERROR: Element of PDFs With Markdown Files folder 198_NE_Combs_Flat_Rd_Prineville_OM_email TEST did not contain both a pdf and a md file 
+TIME ERROR OCURRED (UTC): 2024-09-10 00:37:37.713713+00:00
+
+ERROR: Element of PDFs With Markdown Files folder 7-11 did not contain both a pdf and a md file 
+TIME ERROR OCURRED (UTC): 2024-09-10 00:39:42.301778+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:40:54.513520+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:40:56.841018+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:40:59.171600+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:41:03.502027+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:41:19.852386+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:42:53.925053+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:42:56.303733+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:42:58.769709+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:03.379664+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'exclusiveMinimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:19.726537+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:34.105206+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:36.427723+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:38.776663+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:43.116254+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:43:59.453652+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:46:07.815450+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:49:10.217462+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:49:12.544640+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:49:14.880444+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:49:19.256261+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:49:35.608603+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:51:44.035082+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'value'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:52:26.955387+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'value'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:52:29.328252+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'value'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:52:31.688395+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'value'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:52:36.051888+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:57:30.179676+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:57:32.516198+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:57:34.840770+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:57:39.172675+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 01:57:55.547305+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 02:04:33.776971+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 02:04:36.144773+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 02:04:38.465896+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 02:04:42.790497+00:00
+
+ERROR: Error code: 400 - {'error': {'message': "Invalid schema for response_format 'RealEstateExtraction': In context=('properties', 'rentable_square_feet', 'anyOf', '0'), 'minimum' is not permitted.", 'type': 'invalid_request_error', 'param': 'response_format', 'code': None}} 
+TIME ERROR OCURRED (UTC): 2024-09-10 02:04:59.138349+00:00
+
+ERROR: Element of PDFs With Markdown Files folder 15116 Union Ave SW - Aceitunos OM - TEST did not contain both a pdf and a md file 
+TIME ERROR OCURRED (UTC): 2024-09-10 02:24:07.992071+00:00
+

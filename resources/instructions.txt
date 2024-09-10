@@ -2,7 +2,7 @@ Extracting and Calculating Details from the PDF(s)
 
 Summary: Below these instructions is the text from the text layer of a pdf file under the header #PDF TEXT: followed by a markdown-version of the same pdf file under the header #MARKDOWN TEXT:. You will extract data from the text beneath the #PDF TEXT: and #MARKDOWN TEXT: headers.
 
-1. Extract the following details from either the text beneath the #PDF TEXT: header and the text beneath the #MARKDOWN TEXT: header. If you can't find it, try to calculate it from other details. If you can't find it or calculate a piece of data, then return a -1 or the string NA. Do not return something other than a -1 or the string NA.
+1. Extract the following details from either the text beneath the #PDF TEXT: header and the text beneath the #MARKDOWN TEXT: header. If you can't find it, try to calculate it from other details. If you can't find or calculate a piece of data, then return an empty string "". DO NOT RETURN SOMETHING OTHER THAN AN EMPTY STRING IF YOU CAN'T FIND OR CALCULATE A PIECE OF DATA. THIS IS VERY IMPORTANT.
    - PROPERTY NAME:
    - OWNERS:
    - PARCEL: Look for parcel information or the tax lot information.
@@ -68,4 +68,4 @@ Summary: Below these instructions is the text from the text layer of a pdf file 
    - SELLER'S BROKER: Extract the broker’s name. If there is more than one broker, separate their names with commas.
    - PROPERTY DESCRIPTION: Extract a detailed property description. Be sure to include all paragraphs in the description section as there are frequently more than one.
 
-Remember, if you can't find it or calculate a piece of data, then If you can't find it, try to calculate it from other details. If you can't find it or calculate a piece of data, then return a -1 or the string NA. Do not return something other than a -1 or the string NA.
+Remember, if you can't find  or calculate a piece of data, then return an empty string "". DO NOT RETURN SOMETHING OTHER THAN AN EMPTY STRING IF YOU CAN'T FIND OR CALCULATE A PIECE OF DATA. THIS IS VERY IMPORTANT.

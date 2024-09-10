@@ -35,12 +35,12 @@ MARKER_URL = "https://www.datalab.to/api/v1/marker"
 with open('resources/authentication/APIKeys.json', 'r') as apiKeys:
     OPENAI_API_KEY = json.load(apiKeys)['openai']
 openai.api_key = OPENAI_API_KEY
-BLANK_VALUES = ["NA", "NANANANANANA" -1] #Values ChatGPT has been instructed to return if it cannot find the information corresponding to a column in the spreadsheet in the pdf and markdown files. noinfo is a blank value because a zip code must be 5 digits and noinfo is . 
 RESPONSE_FORMAT = RealEstateExtraction
 
 # Local
 INSTRUCTIONS_FILE_PATH = 'resources/instructions.txt'
 ERROR_LOG_PATH = "resources/errors.log"
+COLUMNS_THAT_SHOULD_NOT_BE_0 = ['rentable_square_feet', 'lot_size', 'year_built', 'sales_price', 'gross_income', 'total_expenses', 'NOI', 'gross_cap_rate', 'net_cap_rate', 'price_per_rentable_square_foot', 'price_per_unit']#At the moment, chatgpt will frequently return 0 when it means to leave a field blank, even when asked not to, so I'm filtering for this manually.
 
 #//////////////////////////////////////////HELPER FUNCTIONS\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -138,7 +138,7 @@ def getMarkdownFromPDFQuery(pdf_path):
 #   - spreadsheet_id: The ID of the spreadsheet to check.
 # Returns: The index of the first empty row.
 def getFirstEmptySpreadsheetRowQuery(spreadsheet_id):
-    data = SHEETS_SERVICE.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range="A:A").execute() # I made the range A:A here because column A will likely always have values in it if there is data in the row. If this turns out not to be true in the future, then this should probably be changed.
+    data = SHEETS_SERVICE.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range="AB:AB").execute() # I made the range A:A here because column A will always have values in it if there is data in the row. If this turns out not to be true in the future, then this should probably be changed.
     values = data.get('values', [])
     return len(values)+1
 
@@ -234,73 +234,65 @@ def pdf_and_md_to_sheets():
                 writeToErrorLog(f"An element of the PDFs With Markdown Files folder {pdf_and_md_pair_folder['name']} is not a folder")
                 if runQuery(moveObjectToFolderQuery, pdf_and_md_pair_folder['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID) == False:
                     writeToErrorLog(f"Could not move non-folder element {pdf_and_md_pair_folder['name']} of PDFs With Markdown Files folder to Problematic Documents folder")
-                break
-            print("looking at folder: "+pdf_and_md_pair_folder['name'])
-            # This block retrieves the contents of each folder. It looks for both the PDF and the corresponding markdown file within the folder. If either is missing, the folder is flagged as problematic. The code distinguishes between the PDF and markdown file by their MIME types.
-            pdf_and_md_pair_folder_contents = runQuery(getFilesInFolderQuery, [pdf_and_md_pair_folder['id']], f"Could not get contents of folder {pdf_and_md_pair_folder['name']}", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder)
-            if pdf_and_md_pair_folder_contents != False:
-                pdf_file = False
-                markdown_file = False
-                for file in pdf_and_md_pair_folder_contents:
-                    if file['mimeType'] == 'application/pdf':
-                        pdf_file = file
-                    elif file['mimeType'] == 'text/markdown':
-                        markdown_file = file
-                if (pdf_file == False) or (markdown_file == False):
-                    writeToErrorLog(f"Element of PDFs With Markdown Files folder {pdf_and_md_pair_folder['name']} did not contain both a pdf and a md file")
-                    runQuery(moveObjectToFolderQuery, [pdf_and_md_pair_folder['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID], f"Could not move folder {pdf_and_md_pair_folder['name']} to Problematic Documents folder")
-                    break
-                print("downloading: "+pdf_file['name']+" and "+ markdown_file['name'])
-                # In this chunk, the PDF and markdown files are downloaded and processed. The PDF text is extracted using the PdfReader, and the markdown file is read as plain text. After extraction, both files are deleted from the local system.
-                if (runQuery(downloadFileQuery, [pdf_file['id'], pdf_file['name']], f"Could not download pdf file {pdf_file['name']} from PDFs With Markdown Files folder", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder) != False): 
-                    if runQuery(downloadFileQuery, [markdown_file['id'], markdown_file['name']], f"Could not download markdown file {markdown_file['name']} from PDFs With Markdown Files folder", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder) != False:
-                        pdf_text = ""
-                        with open(pdf_file['name'], 'rb') as file:
-                                reader = PdfReader(file)
-                                for page in reader.pages:
-                                    pdf_text += page.extract_text()
-                        os.remove(pdf_file['name'])
-                        with open(markdown_file['name'], 'r') as f:
-                            markdown_text = f.read()
-                        os.remove(markdown_file['name'])
-                        print("querying openai api...")
-                        # This chunk formats a prompt with the instructions, extracted PDF text, and markdown content. The prompt is then sent to GPT-4o via an API call (chatGPT4oQuery) to extract real estate data. The response is evaluated (converted from a string to a Python dictionary), which contains the extracted data.
-                        prompt = f"#INSTRUCTIONS\n\n{instructions}\n\n#PDF TEXT:\n\n{pdf_text}\n\n#MARKDOWN TEXT:\n\n{markdown_text}"
-                        response = runQuery(chatGPT4oQuery, [prompt, RESPONSE_FORMAT], f"Could not get real estate data from OpenAI for pdf {pdf_file['name']} and md {markdown_file['name']}", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder)
-                        if response != False:
-                            real_estate_data = eval(response.choices[0].message.content)
-                            print("formatting openai's response")
-                            # This chunk reformats the extracted real estate data for spreadsheet insertion. It converts fields like postal codes from individual digits into a complete code and capitalizes names like property names and owners. It also replaces any missing or invalid values with blank strings (""). Finally, a timestamp is added to track when the data was entered. The time stamp is in UTC.
-                            for key in real_estate_data:
-                                if (((key != "parking_spaces") and (real_estate_data[key] == 0)) or (real_estate_data[key] in BLANK_VALUES)):
-                                    real_estate_data[key] = ""
-                                if (key == "postal_code"):
-                                    print("postal code: "+str(real_estate_data[key].values()))
-                                    digit_list = [*real_estate_data[key]]
-                                    postal_code = "".join(digit_list)
-                                    for blank_value in BLANK_VALUES: #I use parcel.contains("NA") instead of parcel == "NA" because 
-                                        if blank_value in postal_code:
-                                            postal_code = ""
-                                    real_estate_data[key] = postal_code
-                                if (key == "parcel"):
-                                    print("parcel: "+str(real_estate_data[key]))
-                                    parcel = "".join([e['value'] for e in real_estate_data[key]])
-                                    if "NA" in parcel: #I use parcel.contains("NA") instead of parcel == "NA" because of the way the RealEstateData response format is structured
-                                        parcel = ""
-                                    real_estate_data[key] = parcel
-                                if (key in ["property_name", "owners", "city", "county", "tenants", "seller", "sellers_broker"]):
-                                    words_list = real_estate_data[key].split(" ")
-                                    for word in words_list:
-                                        word = word.capitalize()
-                                    real_estate_data[key] = " ".join(words_list)
+            else:
+                # This block retrieves the contents of each folder. It looks for both the PDF and the corresponding markdown file within the folder. If either is missing, the folder is flagged as problematic. The code distinguishes between the PDF and markdown file by their MIME types.
+                pdf_and_md_pair_folder_contents = runQuery(getFilesInFolderQuery, [pdf_and_md_pair_folder['id']], f"Could not get contents of folder {pdf_and_md_pair_folder['name']}", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder)
+                if pdf_and_md_pair_folder_contents != False:
+                    pdf_file = False
+                    markdown_file = False
+                    for file in pdf_and_md_pair_folder_contents:
+                        if file['mimeType'] == 'application/pdf':
+                            pdf_file = file
+                        elif file['mimeType'] == 'text/markdown':
+                            markdown_file = file
+                    if (pdf_file == False) or (markdown_file == False):
+                        writeToErrorLog(f"Element of PDFs With Markdown Files folder {pdf_and_md_pair_folder['name']} did not contain both a pdf and a md file")
+                        runQuery(moveObjectToFolderQuery, [pdf_and_md_pair_folder['id'], PROBLEMATIC_DOCUMENTS_FOLDER_ID], f"Could not move folder {pdf_and_md_pair_folder['name']} to Problematic Documents folder")
+                    else:    
+                        # In this chunk, the PDF and markdown files are downloaded and processed. The PDF text is extracted using the PdfReader, and the markdown file is read as plain text. After extraction, both files are deleted from the local system.
+                        if runQuery(downloadFileQuery, [pdf_file['id'], pdf_file['name']], f"Could not download pdf file {pdf_file['name']} from PDFs With Markdown Files folder", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder) != False: 
+                            if runQuery(downloadFileQuery, [markdown_file['id'], markdown_file['name']], f"Could not download markdown file {markdown_file['name']} from PDFs With Markdown Files folder", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder) != False:
+                                pdf_text = ""
+                                with open(pdf_file['name'], 'rb') as file:
+                                        reader = PdfReader(file)
+                                        for page in reader.pages:
+                                            pdf_text += page.extract_text()
+                                os.remove(pdf_file['name'])
+                                with open(markdown_file['name'], 'r') as f:
+                                    markdown_text = f.read()
+                                os.remove(markdown_file['name'])
+                                
+                                # This chunk formats a prompt with the instructions, extracted PDF text, and markdown content. The prompt is then sent to GPT-4o via an API call (chatGPT4oQuery) to extract real estate data. The response is evaluated (converted from a string to a Python dictionary), which contains the extracted data.
+                                prompt = f"#INSTRUCTIONS\n\n{instructions}\n\n#PDF TEXT:\n\n{pdf_text}\n\n#MARKDOWN TEXT:\n\n{markdown_text}"
+                                response = runQuery(chatGPT4oQuery, [prompt, RESPONSE_FORMAT], f"Could not get real estate data from OpenAI for pdf {pdf_file['name']} and md {markdown_file['name']}", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder)
+                                if response != False:
+                                    real_estate_data = eval(response.choices[0].message.content)
+                                    
+                                    # This chunk reformats the extracted real estate data for spreadsheet insertion. It converts fields like postal codes from individual digits into a complete code and capitalizes names like property names and owners. It also replaces any missing or invalid values with blank strings (""). Finally, a timestamp is added to track when the data was entered. The time stamp is in UTC.
+                                    for key in real_estate_data:
+                                            if (real_estate_data[key] == 0) and (key in COLUMNS_THAT_SHOULD_NOT_BE_0):
+                                                real_estate_data[key] = ""
+                                            elif (key == "property_name") and (real_estate_data[key] == ""):
+                                                real_estate_data[key] = real_estate_data["street_address"]
+                                            elif (key == "postal_code") and (real_estate_data[key] != ""):
+                                                real_estate_data[key] = "".join([*real_estate_data[key].values()])
+                                            elif (key == "parcel") and (real_estate_data[key] != ""):
+                                                real_estate_data[key] = "".join([e['value'] for e in real_estate_data[key]])
+                                            elif (key in ["property_name", "owners", "city", "county", "tenants", "seller", "sellers_broker"]):
+                                                words_list = real_estate_data[key].split(" ")
+                                                for word in words_list:
+                                                    word = word.capitalize()
+                                                real_estate_data[key] = " ".join(words_list)
 
-                            real_estate_data.update({"timeDataEntered": str(datetime.now(timezone.utc).timestamp())})
-                            print("entering data")
-                            # This chunk finds the first empty row in a Google Sheets spreadsheet using getFirstEmptySpreadsheetRowQuery, ensuring data isn't overwritten. If the row is found, the extracted real estate data is written into that row using writeListToSpreadsheetRowQuery. If that operation succeeds, then the folder containing the pdf and markdown file is moved to the PDFs Entered Into Spreadsheet folder. All 3 operations are wrapped in runQuery, which handles retries and error logging in case of failure, ensuring that problematic documents are flagged and moved if necessary.
-                            first_empty_row = runQuery(getFirstEmptySpreadsheetRowQuery, [SPREADSHEET_ID], f"Could not get first empty row in spreadsheet")
-                            if first_empty_row != False:
-                                if runQuery(writeListToSpreadsheetRowQuery, [SPREADSHEET_ID, first_empty_row, real_estate_data], f"Could not write real estate data to spreadsheet", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder) != False:
-                                    runQuery(moveObjectToFolderQuery, [pdf_and_md_pair_folder['id'], PDFS_AND_MD_IN_SHEETS_FOLDER_ID],  f"Could not move pdf and markdown pair folder into PDFs Entered Into Spreadsheet Folder after data was written to the spreadsheet", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder)
+                                    real_estate_data.update({"timeDataEntered": str(datetime.now(timezone.utc).timestamp())})
+                                    
+                                    # This chunk finds the first empty row in a Google Sheets spreadsheet using getFirstEmptySpreadsheetRowQuery, ensuring data isn't overwritten. If the row is found, the extracted real estate data is written into that row using writeListToSpreadsheetRowQuery. If that operation succeeds, then the folder containing the pdf and markdown file is moved to the PDFs Entered Into Spreadsheet folder. All 3 operations are wrapped in runQuery, which handles retries and error logging in case of failure, ensuring that problematic documents are flagged and moved if necessary.
+                                    first_empty_row = runQuery(getFirstEmptySpreadsheetRowQuery, [SPREADSHEET_ID], f"Could not get first empty row in spreadsheet")
+                                    if first_empty_row != False:
+                                        if runQuery(writeListToSpreadsheetRowQuery, [SPREADSHEET_ID, first_empty_row, real_estate_data], f"Could not write real estate data to spreadsheet", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder) != False:
+                                            runQuery(moveObjectToFolderQuery, [pdf_and_md_pair_folder['id'], PDFS_AND_MD_IN_SHEETS_FOLDER_ID],  f"Could not move pdf and markdown pair folder into PDFs Entered Into Spreadsheet Folder after data was written to the spreadsheet", put_object_in_problematic_documents_if_fails=True, object=pdf_and_md_pair_folder)
+                        
+
 
 
 
